@@ -1,0 +1,3 @@
+[submodule "third_party/DeepLabV3Plus_Pytorch"]
+	path = third_party/DeepLabV3Plus_Pytorch
+	url = git@github.com:adgaudio/DeepLabV3Plus-Pytorch.git@8b4f03368cbc346a533398f4f1ac61c6814cda39
