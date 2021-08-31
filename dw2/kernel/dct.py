@@ -3,6 +3,7 @@ import numpy as np
 import math
 import torch as T
 from itertools import product
+import warnings
 
 
 def dct_basis_params_1d(K: int, N=None, basis:Union[str,Tuple[float,float]]='DCT-II'):
@@ -87,7 +88,7 @@ def dct_basis_1d(K, basis:str="DCT-II"):
 
     :returns: KxK matrix, each row is a basis vector.
     """
-    print("DEPRECATED.  Use dct_basis_nd((K, ), ...) ")
+    warnings.warn("DEPRECATED.  Use dct_basis_nd((K, ), ...) ")
     N = K  # num samples == num basis vectors
     f, t, s = dct_basis_params_1d(K, basis=basis).T
     n = np.arange(N).reshape(1,-1)
@@ -108,7 +109,7 @@ def dct_basis_2d(N, M, basis:str="DCT-II"):
     :returns: numpy array containing basis vectors along rows, in form: (NM, N,
     M).  This set of (N,M) sub-matrices forms a complete, orthonormal basis.
     """
-    print("DEPRECATED.  Use dct_basis_nd((N, M), ...).  ")
+    warnings.warn("DEPRECATED.  Use dct_basis_nd((N, M), ...).  ")
     return np.stack([
         np.outer(vy, vx)
         for vy in dct_basis_1d(N, basis=basis)
