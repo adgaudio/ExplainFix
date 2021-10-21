@@ -222,7 +222,7 @@ class PolyConv2d(T.nn.Module):
         return x
 
 
-def haar2d(M: int, h: float, v: float, d: float, a:float=0, f:float=1., norm=True) -> T.Tensor:
+def ghaar2d(M: int, h: float, v: float, d: float, a:float=0, f:float=1., norm=True) -> T.Tensor:
     """Generalize 2D haar wavelet filters by steering horizon, vertical, 
     diagonal and optionally approximation components.
 
@@ -253,10 +253,10 @@ def haar2d(M: int, h: float, v: float, d: float, a:float=0, f:float=1., norm=Tru
       is not tested.
     :f: the frequency of the sine waves.  If f is an odd integer, it naturally gives a wavelet filter that sums to 0.  Typically between [0,M+1), since it's cyclical.
 
-      Horizontal:  haar2d(M, 1,0,0,0)
-      Vertical:    haar2d(M, 0,1,0,0)
-      Diagonal:    haar2d(M, 0,0,1,0)
-      Approx:      haar2d(M, 0,0,0,1)
+      Horizontal:  ghaar2d(M, 1,0,0,0)
+      Vertical:    ghaar2d(M, 0,1,0,0)
+      Diagonal:    ghaar2d(M, 0,0,1,0)
+      Approx:      ghaar2d(M, 0,0,0,1)
 
     :returns: Tensor of shape (M,M), where
       - the matrix elements sum to 0
@@ -439,7 +439,7 @@ class FixedHaarConv2d(T.nn.Module):
             # --> approximation filter (just a box filter)
             filters.append(T.ones((self.filter_size, self.filter_size), dtype=T.float))
         # --> haar filters
-        filters.extend([haar2d(self.filter_size, h,v,d) for h,v,d in hvd_vals])
+        filters.extend([ghaar2d(self.filter_size, h,v,d) for h,v,d in hvd_vals])
         self.filters = T.nn.Parameter(T.stack(filters), requires_grad=False)
 
     def forward(self, x):

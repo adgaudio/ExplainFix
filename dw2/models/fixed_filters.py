@@ -119,13 +119,13 @@ def convert_conv2d_to_fixed(conv2d: T.nn.Conv2d, requires_grad: bool,
         # no approximation, all frequency scales, no normalization
         weights = np.random.rand(ch, 3)*2-1
         filters = [
-            kernel.haar2d(kernel_size, *hvd, f=np.random.uniform(0, 2*(kernel_size-1)), norm=False)
+            kernel.ghaar2d(kernel_size, *hvd, f=np.random.uniform(0, 2*(kernel_size-1)), norm=False)
             for hvd in weights]
     elif method == 'haar':
         # randomly initialized haar weights
         weights = np.random.rand(ch, 3)*2-1
         filters = [
-            kernel.haar2d(kernel_size, *hvd, f=np.random.uniform(0, f+1))
+            kernel.ghaar2d(kernel_size, *hvd, f=np.random.uniform(0, f+1))
             for f, hvd in enumerate(weights)]
         # view some stats on the kernels (after importing a bunch of code)
         #  filters = T.stack(filters)
