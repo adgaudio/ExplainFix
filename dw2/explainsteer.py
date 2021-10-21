@@ -106,7 +106,8 @@ def get_spectra(F:T.Tensor, w: T.Tensor, shape:tuple[int], device:str) -> tuple[
     """Compute e^d, and then use back-projection to get e^1 and e^0.  For e^0, assume kernel shape is square.
 
     :F: a NxM matrix where each row is a flattened spatial convolution filter kernel of some shape, in any dimension.
-    :w: (N, ) or (1,N) tensor of saliency weights for each spatial filter
+        e.g. N is the count of spatial filters, and M=9 for when representing 3x3 filters.
+    :w: (N, ) or (1,N) tensor of saliency weights for each spatial filter.  Assume w > 0 (untested with any w_i<0).
     :shape: the shape of the convolution filter kernel (H,W, ...) where both all dimensions H,W,... > 1
     :device: pytorch device like 'cpu' or 'cuda:0'
     :returns: three spectra e^d, e^1, e^0 of lengths (prod(shape), sum(shape), [None,shape[0]] ) where the last is None unless the shape is square.
