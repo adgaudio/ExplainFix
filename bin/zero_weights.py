@@ -9,7 +9,7 @@ from dw2.models import iter_conv2d, prune_model, convert_all_spatial_conv2d
 from dw2.configs.fixed_filters import load_cfg_from_checkpoint
 import dw2.models.models_for_fixed_filters_paper as M
 from dw2.datasets.dsets_for_fixed_filters_paper import get_datasets_and_loaders
-from explainsteer_chexpert import GetGrads, SumList, get_spectra
+from dw2.explainsteer import SumList, get_spectra
 
 
 def get_spectra_from_grads_2d(model:T.nn.Module, loader: T.utils.data.DataLoader, device:str,
@@ -25,7 +25,6 @@ def get_spectra_from_grads_2d(model:T.nn.Module, loader: T.utils.data.DataLoader
     # --> get gradients
     spectra = SumList()
     N = 0
-    getgrads = GetGrads(iter_conv2d(model, include_spatial=True, include_1x1=False))
     for n, (x,y) in enumerate(loader):
         if n >= num_minibatches:
             break
@@ -52,7 +51,6 @@ def get_spectra_from_grads_2d(model:T.nn.Module, loader: T.utils.data.DataLoader
                 spectra_e0.append(e_0)
                 w.append(saliency_weight)
             spectra += (spectra_e2, spectra_e1, spectra_e0, w)
-        getgrads.clear()
     e_2, e_1, e_0, w = spectra.lists
     return e_2, e_1, e_0, w
 
