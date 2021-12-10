@@ -1,14 +1,28 @@
 from itertools import product
-from typing import Optional
+import dataclasses as dc
+from typing import Optional, Callable
 import math
 import numpy as np
 import torch as T
 from matplotlib import pyplot as plt
-from dw2.models.util import iter_conv2d
-from dw2.kernel import dct_basis_nd
+from explainfix.models.util import iter_conv2d
+from explainfix.kernel import dct_basis_nd
 
 
-def explainsteer_layerwise_without_saliency(model):
+@dc.dataclass
+class ExplainSteerLayerwiseResult:
+    """Stores result of an ExplainSteer applied to spatial convolution layers"""
+    ed: list[T.Tensor]
+    e1: list[T.Tensor]
+    e0: list[T.Tensor]
+
+    def __iter__(self):
+        for layer_ed, layer_e1, layer_e0 in zip(self.ed, self.e1, self.e0):
+            yield (layer_ed, layer_e1, layer_e0)
+
+
+def explainsteer_layerwise_without_saliency(model) -> ExplainSteerLayerwiseResult:
+    """Apply explainsteer without saliency to all spatial conv2d layers of a model"""
     spectra_e2, spectra_e1, spectra_e0 = [],[],[]
     for conv2d in iter_conv2d(model, include_spatial=True, include_1x1=False):
         O,I,H,W = conv2d.weight.shape
@@ -19,12 +33,41 @@ def explainsteer_layerwise_without_saliency(model):
         spectra_e2.append(e_d)
         spectra_e1.append(e_1)
         spectra_e0.append(e_0)
-    return spectra_e2, spectra_e1, spectra_e0
+    return ExplainSteerLayerwiseResult(spectra_e2, spectra_e1, spectra_e0)
+
+
+YHat, Y, Scalar = T.Tensor, T.Tensor, T.Tensor  # for type checking
 
 
 def explainsteer_layerwise_with_saliency(
         model:T.nn.Module, loader:T.utils.data.DataLoader,
-        device:str, num_minibatches:int=float('inf')):
+        device:str, num_minibatches:int=float('inf'),
+        grad_cost_fn:Callable[['YHat', 'Y'],'Scalar']=lambda yhat, y: (yhat*y).sum()
+
+) -> ExplainSteerLayerwiseResult:
+    """
+    Apply explainsteer with saliency to all spatial conv2d layers of a model.
+    This tells which horizontal and vertical components are most useful to the model.
+
+    Args:
+        model: a pytorch model or Module containing spatial 2d convolution layers  (T.nn.Conv2d)
+        loader: pytorch data loader
+        device: pytorch device, like 'cpu' or 'cuda:0'
+        num_minibatches: over how many images to compute the gradients.  We
+            think if the images are similar, then you don't actually need a large
+            number at all.
+        grad_cost_fn: a "loss" used to compute saliency.
+            `yhat` is model output. `y` is ground truth.
+            The default assumes `yhat=model(x)` and `y` are the same shape.
+            Probably `lambda yhat, y: yhat.sum()` also works in many cases.
+
+    Example Usage:
+        spectra = explainsteer_layerwise_with_saliency(model, loader, device)
+        for layer_idx, (e2, e1, e0) in enumerate(spectra):
+            print(layer_idx, e0)
+        plot_spectrum_ed(spectra.ed)
+    """
+    model.to(device, non_blocking=True)
     model.eval()
     # get the set of all 2d spatial filters for all layers of model
     filters_all_layers = [
@@ -38,6 +81,8 @@ def explainsteer_layerwise_with_saliency(
     for n, (x,y) in enumerate(loader):
         if n >= num_minibatches:
             break
+        x = x.to(device, non_blocking=True)
+        y = y.to(device, non_blocking=True)
         batch_size = x.shape[0]
         N += batch_size
         yhat = model(x)
@@ -49,7 +94,7 @@ def explainsteer_layerwise_with_saliency(
         # get gradients, making all predictions for correct classes correct
         #  (y*yhat).sum().backward(retain_graph=False)
         grads_all_layers = T.autograd.grad(
-            ((y)*(yhat)).sum(), filters_all_layers, retain_graph=False)
+            grad_cost_fn(yhat, y), filters_all_layers, retain_graph=False)
         with T.no_grad():
             # get the spectra for every layer
             spectra_e2, spectra_e1, spectra_e0 = [], [], []
@@ -67,7 +112,7 @@ def explainsteer_layerwise_with_saliency(
                 spectra_e0.append(e_0)
             spectra += (spectra_e2, spectra_e1, spectra_e0)
     e_2, e_1, e_0 = spectra.lists
-    return e_2, e_1, e_0
+    return ExplainSteerLayerwiseResult(e_2, e_1, e_0)
 
 
 class SumList:
@@ -198,13 +243,14 @@ def dravel(M, edges_first=True):
     return M.ravel()[z.ravel().argsort(kind='stable')]
 
 
-def plot_spectrum_ed(ed, fig:plt.Figure, loglog=False):
+def plot_spectrum_ed(ed, fig:plt.Figure=None, loglog=False) -> plt.Figure:
     """
     :ed: list of the e^d energy spectra, with one spectrum for each spatial
         convolution layer of the model.
-    :fig: A figure (or subfigure) in which to generate the visuals.
-
+    :fig: A matplotlib figure (or subfigure) in which to generate the visuals.
     """
+    if fig is None:
+        fig = plt.figure()
     # --> convert to matrices for viewing
     E = ragged_to_matrix(ed).T.cpu().numpy()
     # set up the figure (or subfigure)
@@ -229,6 +275,7 @@ def plot_spectrum_ed(ed, fig:plt.Figure, loglog=False):
     axes[2].bar(np.arange(E.shape[1]), E.sum(0))
     # ensure bar plots have no labels or ticks
     [ax.axis('off') for ax in axes[1:]]
+    return fig
 
 
 def ragged_to_matrix(ragged_vectors:list[T.Tensor]):

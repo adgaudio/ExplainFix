@@ -88,7 +88,6 @@ def dct_basis_1d(K, basis:str="DCT-II"):
 
     :returns: KxK matrix, each row is a basis vector.
     """
-    warnings.warn("DEPRECATED.  Use dct_basis_nd((K, ), ...) ")
     N = K  # num samples == num basis vectors
     f, t, s = dct_basis_params_1d(K, basis=basis).T
     n = np.arange(N).reshape(1,-1)
@@ -184,7 +183,7 @@ def dct_steered_2d(N:int, M:int, w:np.ndarray, basis_idxs: np.ndarray, p:np.ndar
     :returns: a (N,M) steered matrix that is the linear combination or polynomial combination
       of the chosen basis.
     """
-    B = dct_basis_2d(N, M)[basis_idxs]
+    B = dct_basis_nd((N, M))[basis_idxs]
     L = len(basis_idxs)
     if p is None:
         p = np.ones((L,1,1))

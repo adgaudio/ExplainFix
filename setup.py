@@ -25,7 +25,7 @@ setup(
     packages=['explainfix', 'explainfix.kernel', 'explainfix.models'],
     scripts=[],
     install_requires=[
-        'efficientnet_pytorch', 'matplotlib', 'networkx', 'numpy', 'torch',
-        'torchvision',
+        'efficientnet_pytorch', 'matplotlib', 'networkx', 'numpy',
+        #  'torch', 'torchvision',
     ]
 )

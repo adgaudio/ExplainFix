@@ -1,13 +1,20 @@
 import torch as T
 import numpy as np
 import math
+from typing import Callable
 from torch.utils.data import DataLoader
 from explainfix.models import prune_model, iter_conv2d
 
 
+YHat = Y = Scalar = T.Tensor  # for type checking
+
+
 def channelprune(
-        model:T.nn.Module, pct:float, loader:DataLoader, device:str,
-        num_minibatches:int=float('inf')):
+        model:T.nn.Module, pct:float,
+        grad_cost_fn:Callable[['YHat', 'Y'], 'Scalar'],
+        loader:DataLoader, device:str, num_minibatches:int=float('inf'),
+        zero_fill_method:str='none'
+):
     """
     ChannelPrune makes models smaller by spatial filter weight saliency.
     Updates the given `model` in-place.
@@ -23,11 +30,19 @@ def channelprune(
             largest number you can.  Note that setting `pct` way too large (e.g.
             `pct=100`) will cause an error.  Setting it too large will hurt model
             performance.
+        grad_cost_fn: The saliency score uses a gradient.  This function
+            determines the loss to use for the gradient.  `yhat = model(X)` is the
+            model's predictions.  Y is the ground truth label.
+            Examples:
+                grad_cost_fn=lambda yhat, y: yhat[:, y].sum()  # get only the correct class (assuming y contains an index value for each sample)
+                grad_cost_fn=lambda yhat, y: (yhat * y).sum()  # get only the correct class (assuming y contains a vector over classes for each sample)
         loader: A pytorch data loader used to compute spatial filter saliency
             scores.  It should generate tuples of form (X, y) where X is model
             input, `yhat = model(X)` and `y` is ground truth.
         device: A pytorch device e.g. "cpu" or "cuda".
         num_minibatches: the number of minibatches from the data loader to use.
+        zero_fill_method: Whether to re-initialize the spatial filters
+            that were zeroed but not pruned.  'none' or 'FillZero' or 'reset'
     Returns:
         None.  It modifies the model in-place.
 
@@ -36,18 +51,36 @@ def channelprune(
         2. Zero out the XX percent least salient (lowest score) filters.
         3. Remove rows and columns of spatial filters that are entirely zero,
            and remove neighboring connections to fix the network.
-        4. Step 2 made some spatial weights sparse, and step 3 might not have
-           removed all of them.  Re-initialize the values that were made sparse
-           with FillZero initialization.
+        4. For any spatial filters that were zeroed and not pruned, optionally
+           re-initialize them via FillZero initialization or reset them to
+           their original values before zeroing.
     """
     saliency_scores = get_spatial_filter_saliency(
         model=model, loader=loader, device=device,
-        num_minibatches=num_minibatches)
+        num_minibatches=num_minibatches, grad_cost_fn=grad_cost_fn)
+    # store original values
+    if zero_fill_method == 'reset':
+        dct = {f'{name}.weight': conv2d.weight.data.clone() for name, conv2d in iter_conv2d(
+            model, include_spatial=True, include_1x1=False, return_name=True)}
+
     zero_least_salient_spatial_filters(
         model=model, saliency_scores=saliency_scores, pct=pct)
+
+    # restore the zeroed filters that can't be pruned
+    if zero_fill_method == 'reset':
+        for name, conv2d in iter_conv2d(model, include_spatial=True, include_1x1=False, return_name=True):
+            f = conv2d.weight.data
+            mask = (f != 0).sum((-1,-2))
+            prunable_cols = mask.sum(0) == 0
+            prunable_rows = mask.sum(1) == 0
+            o = (~prunable_rows).outer(~prunable_cols)
+            f[o] = dct[f'{name}.weight'][o]
+
     prune_model(model)
-    for conv2d in iter_conv2d(model, include_spatial=True, include_1x1=False):
-        fill_zero_initialization(conv2d)
+
+    if zero_fill_method == 'FillZero':
+        for conv2d in iter_conv2d(model, include_spatial=True, include_1x1=False):
+            fill_zero_initialization(conv2d)
 
 
 def fill_zero_initialization(conv2d:T.nn.Conv2d):
@@ -79,7 +112,9 @@ def fill_zero_initialization(conv2d:T.nn.Conv2d):
 
 def get_spatial_filter_saliency(
         model:T.nn.Module, loader:DataLoader, device:str,
-        num_minibatches:int=float('inf')) -> list[T.Tensor]:
+        num_minibatches:int=float('inf'),
+        grad_cost_fn:Callable[['YHat', 'Y'], 'Scalar']=lambda y,yhat: (y*yhat).sum()
+        ) -> list[T.Tensor]:
     model.eval().to(device, non_blocking=True)
     # --> list of spatial filters in model
     filters_all_layers = [
@@ -102,16 +137,17 @@ def get_spatial_filter_saliency(
         # --> compute gradients
         # note: autograd implicitly accumulated gradients for each minibatch sample
         grads_all_layers = T.autograd.grad(  # might want to scale classes so we backprop only ones and zeros. or use deep taylor decomposition or something.  would be equivalent to scaling the gradients directly.
-            (y*yhat).sum(), filters_all_layers, retain_graph=False)
+            grad_cost_fn(yhat, y), filters_all_layers, retain_graph=False)
         with T.no_grad():
             assert len(grads_all_layers) == len(filters_all_layers) == len(saliency_scores), 'code bug'
             # compute saliency by reducing partial derivatives to a single
             # number for each spatial filter.
-            for idx, filter, grad in enumerate(zip(
-                    saliency_scores, filters_all_layers, grads_all_layers)):
+            for idx, (filter, grad) in enumerate(zip(filters_all_layers, grads_all_layers)):
                 assert filter.shape == grad.shape, 'code bug'
                 _spatial_dims = list(range(-1*(filter.ndim-2), 0))
-                saliency_scores[idx] += (filter*grad).abs().sum(_spatial_dims, keepdims=True)
+                #  tmp = (filter*grad).abs().sum(_spatial_dims)
+                tmp = grad.abs().sum(_spatial_dims)  # alternative
+                saliency_scores[idx] += (filter*grad).abs().sum(_spatial_dims)
     # --> restore the original requires_grad settings
     [x.requires_grad_(y) for x, y in zip(filters_all_layers, rg)]
     return saliency_scores
