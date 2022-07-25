@@ -15,6 +15,8 @@ rcParams.update({
 })
 
 
+def norm01(x):
+    return (x-x.min()) / (x.max()-x.min())
 
 
 # haar basis
@@ -32,21 +34,21 @@ assert np.allclose(b, np.sin(_x+np.pi/2).reshape(2,1))
 vertical = a@b.T
 horizontal = b@a.T
 diagonal = b@b.T
-axs[0].imshow(vertical)
+axs[0].imshow(vertical, norm=plt.cm.colors.CenteredNorm(0))
 axs[0].set_title(r'Vertical, $\mathbf{a} \mathbf{b}^T$')
 axs[1].set_title(r'Horizontal, $\mathbf{b} \mathbf{a}^T$')
-axs[1].imshow(horizontal)
+axs[1].imshow(horizontal, norm=plt.cm.colors.CenteredNorm(0))
 axs[2].set_title(r'Diagonal, $\mathbf{b} \mathbf{b}^T$')
-axs[2].imshow(diagonal)
+axs[2].imshow(diagonal, norm=plt.cm.colors.CenteredNorm(0))
 _x = np.linspace(0, np.pi, 3)
 a = np.array(_x*0+np.pi/2).reshape(3,1)
 b = np.sin(_x+np.pi/2).reshape(3,1)
 vertical = a@b.T
 horizontal = b@a.T
 diagonal = b@b.T
-axs[3].imshow(vertical)
-axs[4].imshow(horizontal)
-axs[5].imshow(diagonal)
+axs[3].imshow(vertical, norm=plt.cm.colors.CenteredNorm(0))
+axs[4].imshow(horizontal, norm=plt.cm.colors.CenteredNorm(0))
+axs[5].imshow(diagonal, norm=plt.cm.colors.CenteredNorm(0))
 #  fig.tight_layout()
 fig.subplots_adjust(wspace=.05, hspace=.05)
 fig.savefig('./haar_basis.png', bbox_inches='tight')
@@ -103,9 +105,10 @@ def make_filter(maxp, L, L_smaller):
     assert p.max() <= maxp
     #  p[0] = maxp  # just to ensure maxp is actually correct for the visual
     w = np.random.uniform(0, 1, (L, )) ; w = w/w.sum() * 2 - 1
+
     return (
-        K.polynomial_sin_ND(M=T.tensor(M), f=T.tensor(f), t=T.tensor(t), p=T.tensor(p), w=T.tensor(w)),
-        K.polynomial_sin_ND(M=T.tensor(M), f=T.tensor(f[:L_smaller]), t=T.tensor(t[:L_smaller]), p=T.tensor(p[:L_smaller]), w=T.tensor(w[:L_smaller])), 
+        -1+2*norm01(K.polynomial_sin_ND(M=T.tensor(M), f=T.tensor(f), t=T.tensor(t), p=T.tensor(p), w=T.tensor(w))),
+        -1+2*norm01(K.polynomial_sin_ND(M=T.tensor(M), f=T.tensor(f[:L_smaller]), t=T.tensor(t[:L_smaller]), p=T.tensor(p[:L_smaller]), w=T.tensor(w[:L_smaller]))),
     )
 fig4, axs = plt.subplots(2, 5, figsize=(5*3, 2*3))
 for nthcol, maxp in enumerate(np.linspace(3, 40, 5)):
@@ -114,16 +117,16 @@ for nthcol, maxp in enumerate(np.linspace(3, 40, 5)):
     L_sparse = L//6  # int(L/10)  # max(1, int(L/10))
     Fs.extend(make_filter(maxp, L, L_sparse))
     axs[0, nthcol].set_title('$max(\mathbf{p})=%s$\n $\ell=%s$' % (maxp, L))
-    axs[0, nthcol].imshow(Fs[-2])
+    axs[0, nthcol].imshow(Fs[-2], norm=plt.cm.colors.CenteredNorm(0), cmap='PuOr')
     axs[1, nthcol].set_title(r'$\ell=%s$' % L_sparse)
-    axs[1, nthcol].imshow(Fs[-1])
+    axs[1, nthcol].imshow(Fs[-1], norm=plt.cm.colors.CenteredNorm(0), cmap='PuOr')
 [ax.axis('off') for ax in axs.ravel()]
 fig4.savefig('./polynomial_sin_L_vs_p.png', bbox_inches='tight')
     #  print(
         #  (Fs[-2].mean(), Fs[-2].min(), Fs[-2].max()),
         #  (Fs[-1].mean(), Fs[-1].min(), Fs[-1].max()),)
-fig4a = P.plot_img_grid(Fs[0::2], rows_cols=(1,5), vmin='min', vmax='max')
-fig4b = P.plot_img_grid(Fs[1::2], rows_cols=(1,5), vmin='min', vmax='max')
+fig4a = P.plot_img_grid(Fs[0::2], rows_cols=(1,5), norm=plt.cm.colors.CenteredNorm(0), cmap='PuOr')
+fig4b = P.plot_img_grid(Fs[1::2], rows_cols=(1,5), norm=plt.cm.colors.CenteredNorm(0), cmap='PuOr')
                       #  ) + Fs[1::2], rows_cols=(2,5))
 fig4a.savefig('./polynomial_sin_correct_ell.png', bbox_inches='tight')
 fig4b.savefig('./polynomial_sin_wrong_ell.png', bbox_inches='tight')

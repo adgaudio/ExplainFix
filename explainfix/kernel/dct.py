@@ -117,7 +117,7 @@ def dct_basis_2d(N, M, basis:str="DCT-II"):
 #  def dct_basis_nd(kernel_shape, basis='DCT-II')
 #  np.eye(shape)*-2+1  # output like this [ [-1,1,1], [1,-1,1], [1,1,-1] ]
 
-def dct_basis_nd(kernel_shape:tuple[int], basis:str='DCT-II'):
+def dct_basis_nd(kernel_shape:Tuple[int], basis:str='DCT-II'):
     """
     Construct the complete orthonormal N-D basis for the Discrete Cosine Transform (Type 2).
 

@@ -1,6 +1,6 @@
 from itertools import product
 import dataclasses as dc
-from typing import Optional, Callable
+from typing import Optional, Callable, List, Tuple
 import math
 import numpy as np
 import torch as T
@@ -12,9 +12,9 @@ from explainfix.kernel import dct_basis_nd
 @dc.dataclass
 class ExplainSteerLayerwiseResult:
     """Stores result of an ExplainSteer applied to spatial convolution layers"""
-    ed: list[T.Tensor]
-    e1: list[T.Tensor]
-    e0: list[T.Tensor]
+    ed: List[T.Tensor]
+    e1: List[T.Tensor]
+    e0: List[T.Tensor]
 
     def __iter__(self):
         for layer_ed, layer_e1, layer_e0 in zip(self.ed, self.e1, self.e0):
@@ -147,7 +147,7 @@ class SumList:
         return self.lists[list_idx]
 
 
-def get_spectra(F:T.Tensor, w: T.Tensor, shape:tuple[int], device:str) -> tuple[T.Tensor,T.Tensor,Optional[T.Tensor]]:
+def get_spectra(F:T.Tensor, w: T.Tensor, shape:Tuple[int], device:str) -> Tuple[T.Tensor,T.Tensor,Optional[T.Tensor]]:
     """Compute e^d, and then use back-projection to get e^1 and e^0.  For e^0, assume kernel shape is square.
 
     :F: a NxM matrix where each row is a flattened spatial convolution filter kernel of some shape, in any dimension.
@@ -278,7 +278,7 @@ def plot_spectrum_ed(ed, fig:plt.Figure=None, loglog=False) -> plt.Figure:
     return fig
 
 
-def ragged_to_matrix(ragged_vectors:list[T.Tensor]):
+def ragged_to_matrix(ragged_vectors:List[T.Tensor]):
 
     """Convert list of ragged 1-d vectors by padding zeros to the right
     for any vector that is too small.

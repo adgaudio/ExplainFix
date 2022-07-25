@@ -1,7 +1,7 @@
 import torch as T
 import numpy as np
 import math
-from typing import Callable
+from typing import Callable, List
 from torch.utils.data import DataLoader
 from explainfix.models import prune_model, iter_conv2d
 
@@ -114,7 +114,7 @@ def get_spatial_filter_saliency(
         model:T.nn.Module, loader:DataLoader, device:str,
         num_minibatches:int=float('inf'),
         grad_cost_fn:Callable[['YHat', 'Y'], 'Scalar']=lambda y,yhat: (y*yhat).sum()
-        ) -> list[T.Tensor]:
+        ) -> List[T.Tensor]:
     model.eval().to(device, non_blocking=True)
     # --> list of spatial filters in model
     filters_all_layers = [
@@ -154,7 +154,7 @@ def get_spatial_filter_saliency(
 
 
 def zero_least_salient_spatial_filters(
-        model:T.nn.Module, saliency_scores:list[T.Tensor], pct:float):
+        model:T.nn.Module, saliency_scores:List[T.Tensor], pct:float):
     """
     Modify a model in-place by zero-ing out the least salient spatial filters.
 

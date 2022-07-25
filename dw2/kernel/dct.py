@@ -88,7 +88,6 @@ def dct_basis_1d(K, basis:str="DCT-II"):
 
     :returns: KxK matrix, each row is a basis vector.
     """
-    warnings.warn("DEPRECATED.  Use dct_basis_nd((K, ), ...) ")
     N = K  # num samples == num basis vectors
     f, t, s = dct_basis_params_1d(K, basis=basis).T
     n = np.arange(N).reshape(1,-1)

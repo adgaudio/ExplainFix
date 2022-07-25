@@ -1,5 +1,5 @@
 import torch as T
-from typing import Union, Generator
+from typing import Union, Generator, List, Tuple
 
 
 def iter_conv2d(model: T.nn.Module, include_spatial:bool=True, include_1x1:bool=False,
@@ -20,8 +20,8 @@ def iter_conv2d(model: T.nn.Module, include_spatial:bool=True, include_1x1:bool=
 
 def extract_all_spatial_filters(
         model:T.nn.Module, requires_grad=False,
-        HW:Union[str,list[tuple[int,int]]]='all'
-        ) -> Generator[list[tuple[int,int], int, T.Tensor], None, None]:
+        HW:Union[str,List[Tuple[int,int]]]='all'
+        ) -> Generator[Tuple[Tuple[int,int], int, T.Tensor], None, None]:
     for layer_idx, conv2d in enumerate(iter_conv2d(model)):
         o,i,h,w = conv2d.weight.shape
         F = conv2d.weight.reshape(o*i, h*w)

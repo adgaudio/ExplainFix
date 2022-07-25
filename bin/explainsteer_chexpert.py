@@ -95,9 +95,11 @@ def plot_e1_e0(e1_e0_data):
     fig_e0_5, ax2 = plt.subplots(figsize=(3,4))
     for df23, d, k, ax in [(df2, 1, 3, ax0), (df3_3, 0, 3, ax1), (df3_5, 0, 5, ax2)]:
         z = df23.xs('Fully Learned Baseline', level=1).sort_index()
-        z.plot.barh(stacked=True, ax=ax, color=np.vstack([
-                plt.cm.RdYlGn_r(np.linspace(0, 1, k)),
-                plt.cm.RdYlGn_r(np.linspace(0, 1, k))]))
+        # choose a color mapping, cm
+        cm = plt.cm.RdYlGn_r(np.linspace(0, 1, k))
+        cm[:, :-1] -= .15
+        cm = cm.clip(0,1)
+        z.plot.barh(stacked=True, ax=ax, color=np.vstack([cm, cm]))
         ax.set_ylabel(None)
         ax.set_xlabel('Normalized energies')
         ax.set_title(r'$%s \times %s$ Kernels' % (k,k))
