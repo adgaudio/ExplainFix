@@ -125,9 +125,6 @@ tools easily usable in other contexts.
 - Install python dependendencies
 
     ```
-    pip install -U simplepytorch
-    # or:   pip install -U --no-deps simplepytorch
-
     pip install -U git+https://github.com/adgaudio/ExplainFix.git
 
     # whatever else is missing

@@ -26,6 +26,7 @@ setup(
     scripts=[],
     install_requires=[
         'efficientnet_pytorch', 'matplotlib', 'networkx', 'numpy',
+        'simplepytorch==v1.0.0'
         #  'torch', 'torchvision',
     ]
 )
